@@ -1,0 +1,210 @@
+# Loki Setup and Configuration Guide
+
+## Overview
+Loki is a horizontally-scalable, highly-available, multi-tenant log aggregation system inspired by Prometheus.
+It is designed to be very cost effective and easy to operate, as it does not index the contents of the logs,
+but rather a set of labels for each log stream.
+
+## Installation
+
+### Prerequisites
+- Docker installed and running
+- Docker Compose (for the stack setup)
+- 512MB RAM minimum per instance
+- 1GB disk space for logs
+
+### Using Docker
+The recommended way to run Loki is via Docker. A docker-compose.yml file is included in this directory.
+
+To start Loki:
+```bash
+docker-compose up -d
+```
+
+Loki will be available at http://localhost:3100
+
+## Configuration
+
+### Config File (loki-config.yml)
+The main configuration options:
+
+**auth_enabled**: Set to false for development (true in production)
+**ingester**: Controls how logs are ingested
+**storage_config**: Where logs are stored (filesystem for local, S3/GCS for cloud)
+**limits_config**: Rate limiting and log retention
+**schema_config**: Index schema and period
+
+### Docker Compose Setup
+The provided docker-compose.yml includes:
+- Loki service (port 3100)
+- Promtail agent (for log shipping)
+- Prometheus (for metrics)
+- Grafana (for visualization)
+
+## Log Ingestion
+
+### Promtail Configuration
+Promtail is the agent that ships logs to Loki. Configure it to:
+1. Find log files on the system
+2. Parse and label them
+3. Send to Loki server
+
+Example config:
+```yaml
+scrape_configs:
+  - job_name: system
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: varlogs
+          __path__: /var/log/*log
+```
+
+## Querying Logs
+
+### Loki Query Language (LogQL)
+Basic queries:
+- {job="nginx"} - All logs from nginx job
+- {job="nginx"} |= "error" - Filter logs containing "error"
+- {job="nginx"} |= "error" | json - Parse JSON logs
+- {job="nginx"} | pattern `<ip> - <_> [<_>] "<method> <path> <_>" <status>` - Pattern parsing
+
+### Via Web UI
+Access Grafana at http://localhost:3000 (default: admin/admin)
+Go to Explore section and select Loki data source
+
+### Via CLI (HTTP)
+```bash
+curl -s "http://localhost:3100/loki/api/v1/query_range?query={job%3D%22varlogs%22}&start=0&end=1234567890" | jq
+```
+
+## Storage Backends
+
+### Local Filesystem (Default for Dev)
+- Simple setup, no external dependencies
+- Good for testing and development
+- Not suitable for production
+- Data stored in /loki/chunks and /loki/index directories
+
+### S3 (AWS)
+- Scalable and cost-effective
+- Configure with AWS credentials and bucket
+- Recommended for production
+
+### Google Cloud Storage (GCS)
+- Similar to S3 setup
+- Use GCS buckets instead of S3
+
+## Retention Policies
+
+Configure in limits_config:
+```yaml
+retention_deletes_enabled: true
+retention_period: 720h  # 30 days
+```
+
+Loki will delete logs older than the retention period.
+
+## Performance Tuning
+
+### Memory Management
+- Increase max_concurrent_requests for higher throughput
+- Adjust chunk_idle_period based on log volume
+- Use compression for large log volumes
+
+### Scaling
+- Run multiple Loki instances
+- Use load balancer in front
+- Share storage backend (S3/GCS)
+- Use a distributed hash ring for consistency
+
+## Monitoring Loki
+
+### Metrics to Watch
+- loki_distributor_bytes_received_total - Total bytes received
+- loki_ingester_chunks_created_total - Chunks created
+- loki_request_duration_seconds - Request latency
+- loki_panic_total - Number of panics
+
+### Health Check
+```bash
+curl -s http://localhost:3100/ready
+```
+
+## Troubleshooting
+
+### No logs appearing
+1. Check Promtail configuration
+2. Verify log files exist at specified path
+3. Check Loki logs: `docker logs <loki-container>`
+4. Verify network connectivity between Promtail and Loki
+
+### High memory usage
+1. Reduce chunk_idle_period
+2. Lower max_chunk_age
+3. Increase number of instances
+4. Enable compression
+
+### Query failures
+1. Check query syntax
+2. Verify labels exist in logs
+3. Check time range is valid
+4. Look at Loki logs for errors
+
+## Best Practices
+
+1. **Label Strategy**: Use consistent label naming
+2. **Cardinality**: Avoid high-cardinality labels (timestamps, IDs)
+3. **Retention**: Set appropriate retention for compliance
+4. **Security**: Enable auth and TLS in production
+5. **Backups**: Regularly backup S3/GCS buckets
+6. **Alerting**: Set up alerts for Loki health metrics
+7. **Documentation**: Document custom label schemes
+
+## Additional Resources
+
+- Official Documentation: https://grafana.com/docs/loki/latest/
+- GitHub Repository: https://github.com/grafana/loki
+- Community: https://community.grafana.com/
+
+## Setup Verification Checklist
+
+- [ ] Docker and Docker Compose installed
+- [ ] docker-compose.yml file present in monitoring/
+- [ ] All services starting without errors
+- [ ] Loki accessible at http://localhost:3100
+- [ ] Grafana accessible at http://localhost:3000
+- [ ] Promtail configured and running
+- [ ] Test logs being ingested
+- [ ] Able to query logs in Grafana
+- [ ] Retention policy configured
+- [ ] Monitoring metrics visible in Prometheus
+
+## Quick Start Commands
+
+Start the stack:
+```bash
+cd monitoring
+docker-compose up -d
+```
+
+Check status:
+```bash
+docker-compose ps
+```
+
+View logs:
+```bash
+docker-compose logs -f loki
+```
+
+Stop the stack:
+```bash
+docker-compose down
+```
+
+Access interfaces:
+- Loki API: http://localhost:3100
+- Grafana: http://localhost:3000
+- Prometheus: http://localhost:9090

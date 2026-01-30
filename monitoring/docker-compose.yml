@@ -1,0 +1,88 @@
+version: '3.8'
+
+# Docker Compose Stack for Monitoring and Log Aggregation
+# DevOps Final Assessment Project
+# Author: T SUBHAM PATRO (KRAZATEC)
+# Components: Loki (Log Aggregation), Promtail (Log Shipper), Grafana (Visualization)
+
+services:
+  # Loki - Log Aggregation Service
+  loki:
+    image: grafana/loki:latest
+    container_name: devops-loki
+    restart: unless-stopped
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./loki-config.yml:/etc/loki/local-config.yml
+      - loki-storage:/loki
+    command: -config.file=/etc/loki/local-config.yml
+    environment:
+      - TZ=UTC
+    networks:
+      - monitoring
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3100/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Promtail - Log Shipping Agent
+  promtail:
+    image: grafana/promtail:latest
+    container_name: devops-promtail
+    restart: unless-stopped
+    volumes:
+      - /var/log:/var/log
+      - ./promtail-config.yml:/etc/promtail/config.yml
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: -config.file=/etc/promtail/config.yml
+    environment:
+      - TZ=UTC
+    networks:
+      - monitoring
+    depends_on:
+      - loki
+
+  # Grafana - Visualization and Dashboarding
+  grafana:
+    image: grafana/grafana:latest
+    container_name: devops-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-storage:/var/lib/grafana
+      - ./grafana-datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml
+      - ./grafana-dashboards.yml:/etc/grafana/provisioning/dashboards/dashboards.yml
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SMTP_ENABLED=false
+      - TZ=UTC
+    networks:
+      - monitoring
+    depends_on:
+      - loki
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+# Volumes for persistent data storage
+volumes:
+  loki-storage:
+    driver: local
+  grafana-storage:
+    driver: local
+
+# Network for service communication
+networks:
+  monitoring:
+    driver: bridge

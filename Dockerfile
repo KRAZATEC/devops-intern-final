@@ -24,7 +24,7 @@ WORKDIR /app
 RUN useradd -m -u 1000 devops
 
 # Copy from builder
-COPY --from=builder /root/.local /home/devops/.local
+# Optional: Skip copying .local if requirements.txt wasn't installed
 COPY --from=builder /app/hello.py .
 
 # Set environment variables

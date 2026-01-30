@@ -11,10 +11,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Copy application files
 COPY hello.py .
-COPY requirements.txt . 2>/dev/null || echo "No requirements.txt"
-
 # Install Python dependencies (if requirements.txt exists)
-RUN pip install --no-cache-dir --user -r requirements.txt 2>/dev/null || true
+RUN pip install --no-cache-dir --user -r requirements.txt || true
+
 
 # Stage 2: Runtime stage
 FROM python:3.11-slim

@@ -4,8 +4,7 @@
 
 This is a **comprehensive DevOps Final Assessment project** that covers all essential DevOps and infrastructure concepts. The project demonstrates real-world DevOps practices including version control, containerization, CI/CD automation, Linux scripting, orchestration, and monitoring.
 
-**Created by:** T SUBHAM PATRO (KRAZATEC)  
-**Location:** Madanapalle, Andhra Pradesh, IN  
+**Created by:** T SUBHAM PATRO (KRAZATEC)   
 **Repository:** https://github.com/KRAZATEC/devops-intern-final
 
 ---
